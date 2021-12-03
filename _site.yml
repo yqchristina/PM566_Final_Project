@@ -3,8 +3,6 @@ output_dir: "."
 navbar:
   title: "PM566 Final Project"
   left:
-    - text: "Introduction"
-      href: intro.html
     - text: "Methods & Results"
       href: index.html
 output:

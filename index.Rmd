@@ -34,6 +34,10 @@ opts_chunk$set(
 
 # Exploring Cytochrome P450 Enzymes Found in the Human Brain
 
+## Introduction
+This project is based on my PhD thesis exploring the enzymes in the brain that can produce the neurosteroid pregnenolone from cholesterol. In classical steroid-producing organs such as the adrenals, pregnenolone is metabolized from cholesterol by the cytochrome P450 (CYP450) enzyme CYP11A1 (see [Lin & Papadopoulos, 2021](https://pubmed.ncbi.nlm.nih.gov/34015388/) for review). However, CYP11A1 protein is difficult to detect in the brain and preliminary experiments have revealed that a potential alternate pathway not involving CYP11A1 is used by human brain cells to produce pregnenolone. Therefore, this project will analyze known CYP450s in the UniProt database as well as microarray data from the Allen Brain Atlas to answer 2 main questions: 1) Which CYP450 enzymes are expressed in the brain and what are their expression levels? 2) Which of those CYP450 enzymes are involved in cholesterol/steroid metabolism? 
+
+
 ## Methods
 List of CYP450s were obtained from the UniProt database by searching "cytochrome P450". Additional filters were applied: "Homo sapiens(human)" for species and "Reviewed" results to extract information only from manually annotated records from literature and curator-evaluated computational analysis. The columns of interest are protein name, gene name, length (of protein), mass, tissue specificity, cofactor, function, subcellular location, pathway, and sequence. The [results](https://www.uniprot.org/uniprot/?query=cytochrome%20p450&fil=organism%3A%22Homo%20sapiens%20(Human)%20%5B9606%5D%22%20AND%20reviewed%3Ayes&columns=id%2Centry%20name%2Cprotein%20names%2Cgenes%2Corganism%2Clength%2Cmass%2Ccomment(TISSUE%20SPECIFICITY)%2Ccomment(COFACTOR)%2Ccomment(FUNCTION)%2Ccomment(SUBCELLULAR%20LOCATION)%2Ccomment(PATHWAY)%2Csequence&sort=score) were downloaded as a CSV file. 
 
@@ -141,7 +145,6 @@ ggplot(cyp450, mapping=aes(x = Mass, y = Length, color = Gene_name)) +
 Figure 1: Correlation between mass and length of human CYP450s. As expected, there is a positive linear correlation between mass and length of CYP450 enzymes. 
 
 
-
 Out of the `r nrow(cyp450)` CYP450 enzymes in humans, there are `r nrow(brain_cyp450)` CYP450s that have protein expression in the brain.
 
 ```{r}
@@ -170,14 +173,22 @@ chol_function[, Mitochondria := grepl("mitochondria|mitochondrion", Subcellular_
 chol_function[, Cytoplasm := grepl("cytoplasm|cytoplasmic", Subcellular_location)]
 chol_function[, Organelle := ifelse(ER&Mitochondria, "Both ER and Mitochondria", 
                                   ifelse(Mitochondria, "Mitochondria Only", "ER Only"))]
-ggplot(chol_function) +
-  geom_point(mapping = aes(x = Organelle, y = Mass, color = Gene_name), size = 3) +
-  xlab("Subcellular Location") + ylab ("Mass (Dalton)") + ggtitle("Subcellular Location of Cholesteroland Steroid Related Brain CYP450s")
+
+chol_function %>%
+  plot_ly(x=~Organelle, y=~Mass, 
+           type= 'scatter', mode = 'markers', color=~Gene_name, 
+           hoverinfo='text',
+           text=~Gene_name) %>%
+ layout(title = "Subcellular Location of Cholesterol and Steroid Related Brain CYP450s",
+                  yaxis = list(title = "Mass (Dalton)"), xaxis = list(title = "Subcellular Location"),
+         hovermode = "compare")
+
+
+
 ```
 
 
-
-Figure 3: Subcellular location and masses of human CYP450s expressed in the brain that are involved in cholesterol and steroid functions. The majority of these enzymes are located in the endoplasmic reticulum. CYP27A1 is the only one of these enzymes that is only located in the mitochondria while CYP1B1 is found in both the endoplasmic reticulum and mitochondria. The enzymes that localize to the mitochondria also appear to have higher masses than those that are only found in the ER. 
+Figure 2: Subcellular location and masses of human CYP450s expressed in the brain that are involved in cholesterol and steroid functions. The majority of these enzymes are located in the endoplasmic reticulum. CYP27A1 is the only one of these enzymes that is only located in the mitochondria while CYP1B1 is found in both the endoplasmic reticulum and mitochondria. The enzymes that localize to the mitochondria also appear to have higher masses than those that are only found in the ER. 
 
 
 Therefore, the CYP450 enzymes of interest found using the UniProt database are listed in the table below. 
@@ -199,7 +210,7 @@ ggplot(microarray, mapping=aes(x = top_level_structure_name, y= expression, colo
   ggtitle("RNA Expression of CYP450s in Different Brain Structures")
 
 ```
-Figure 4: Expression of CYP450s in different brain structures. 
+Figure 3: Expression of CYP450s in different brain structures. 
 
 
 To examine the overall expression of the CYP450s, the average expression in different brain areas for all the donors was calculated. The genes with equal or higher expression than CYP11A1 was filtered out.
@@ -215,63 +226,65 @@ averages <- averages[order(-avg),]
 cyp11a1_avg <- mean(averages[grep("CYP11A1", `gene-symbol`)]$avg, na.rm = TRUE)
 averages_higher <- averages[avg >= cyp11a1_avg]
 
-#ggplot(averages_higher, mapping=aes(x = `gene-symbol`, y= avg)) +
-#  geom_col()+
-#  coord_flip()+
-#  ylab("Expression level (log2)") +
-#  xlab("Gene") +
-#  ggtitle("CYP450s with Equal or Higher Expression than CYP11A1")
 ```
-Figure 5: RNA Expression of CYP450s with Equal of Higher Expression than CYP11A1. There are `r length(unique(averages_higher$gene_symbol))` CYP450 enzymes with equal or higher expression than CYP11A1 in the brain. As seen from the graph, CYP51A1 appears to have the highest expression out of all the CYP450s, followed by CYP4Z1 and CYP2J2. 
+
 
 
 ```{r}
-averages %>%
-  plot_ly(x=~gene_name, y=~avg, 
-           type= 'scatter', mode = 'markers', color=~donor_age, 
+averages_higher %>%
+  plot_ly(x=~top_level_structure, y=~avg, 
+           type= 'scatter', mode = 'markers', color=~gene_name, 
            hoverinfo='text',
-           text=~paste(paste(top_level_structure, ":", sep=""), avg, sep = "<br>"))
+           text=~paste(paste(gene_name, ":", sep=""), avg, sep = "<br>"))
 ```
 
+Figure 4: RNA Expression of CYP450s with Equal of Higher Expression than CYP11A1. There are `r length(unique(averages_higher$gene_name))` CYP450 enzymes with equal or higher expression than CYP11A1 in the brain. As seen from the graph, CYP51A1 appears to have the highest expression out of all the CYP450s, followed by CYP4Z1 and CYP2J2. 
 
 
-By comparing the list of CYP450s generated from the RNA analysis to that generated by the protein analysis, 
+Now combining the CYP450s more highly expressed in the brain than CYP11A1 with the UniProt data to see which ones have cholesterol related function. 
+```{r}
+combined <- merge(cyp450,averages_higher, by.x = "Gene_name", by.y = "gene_name", all.x = FALSE, all.y = TRUE)
 
 
-We can also look to see if expression of CYP450s change with age in the brain. 
+combined_chol <- combined[grep("cholesterol|steroid|hormone", Function),]
+combined_chol[, ER := grepl("endoplasmic\\sreticulum",Subcellular_location)]
+combined_chol[, Mitochondria := grepl("mitochondria|mitochondrion", Subcellular_location)]
+combined_chol[, Cytoplasm := grepl("cytoplasm|cytoplasmic", Subcellular_location)]
+combined_chol[, Organelle := ifelse(ER&Mitochondria, "Both ER and Mitochondria", 
+                                  ifelse(Mitochondria, "Mitochondria Only", "ER Only"))]
+
+combined_chol %>%
+  plot_ly(x=~Organelle, y=~Gene_name, 
+           type= 'scatter', mode = 'markers',  
+           hoverinfo='text',
+           text=~paste(paste(Gene_name, ":", sep=""), avg, sep = "<br>"))
+
+```
+
+Figure 5: Subcellular localization of CYP450s that have cholesterol related functions with equal or higher expression in the brain than CYP11A1. 
+
+We see that there are `r length(unique(combined_chol$Gene_name))` CYP450s with cholesterol related function when the two datasets are combined together. The CYP450s are listed below.
 
 ```{r}
-averages$donor_age <- str_remove_all(averages$donor_age, "[[:space:]]+years")
-averages <- averages[, donor_age:= as.numeric(donor_age)]
-ggplot(averages, mapping=aes(x= donor_age, y= avg, color = `gene-symbol`)) +
-  geom_point()
+combined_chol2 <- unique(combined_chol[, .(
+  Gene_name = Gene_name,
+  Mass = Mass,
+  Function = Function,
+  Organelle = Organelle,
+  Expression = mean(avg, na.rm = TRUE)
+), by= "Gene_name"])
+
+interest2 <- combined_chol2[, .(Gene_name, Mass, Organelle)]
+
+knitr::kable(interest2)
 ```
-There appears to be no age-specific changes 
 
-
+Table 2: CYP450s with cholesterol related functions with RNA expression equal to or higher than CYP11A1 in the brain. 
 
 ## Conclusion
-In this analysis, CYP450 enzymes that are expressed in the human brain with functions related to cholesterol and steroid were extracted from a data set containing all human CYP450s. There are `r nrow(chol_function)` of such proteins, which are `r chol_function$Gene_name`. 
+In this analysis, CYP450 enzymes that are expressed in the human brain with functions related to cholesterol and steroid were extracted from a data set containing all human CYP450s. There are `r nrow(chol_function)` of such proteins, which are `r chol_function$Gene_name`. Analysis of microarray data revealed `r length(unique(combined_chol$Gene_name))` of such genes.
 
 The expression for these genes in the brain can then be validated in future experiments using qRT-PCR on human brain tissue RNA. 
-
-
-
-## Showcasing plots {.tabset}
-
-### Tab 1
-
-```{r echo=FALSE}
-#p1_scatter
-```
-
-### Tab 2
-
-```{r echo=FALSE}
-#p2_scatter
-```
-
-{-}
 
 
 
