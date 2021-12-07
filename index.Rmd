@@ -1,11 +1,13 @@
 ---
 title: "PM566 Final Project"
 author: "Christina Lin"
-output: 
-    html_document:
-        toc: TRUE
-        toc_float: TRUE
-        code_folding: hide
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    code_folding: hide
 ---
 
 ```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
@@ -36,7 +38,7 @@ opts_chunk$set(
 # Exploring Cytochrome P450 Enzymes Found in the Human Brain
 
 ## Introduction
-This project is based on my PhD thesis exploring the enzymes in the brain that can produce the neurosteroid pregnenolone from cholesterol. In classical steroid-producing organs such as the adrenals, pregnenolone is metabolized from cholesterol by the cytochrome P450 (CYP450) enzyme CYP11A1 (see [Lin & Papadopoulos, 2021](https://pubmed.ncbi.nlm.nih.gov/34015388/) for review). However, CYP11A1 protein is difficult to detect in the brain and preliminary experiments have revealed that a potential alternate pathway not involving CYP11A1 is used by human brain cells to produce pregnenolone. Therefore, this project will analyze known CYP450s in the UniProt database as well as microarray data from the Allen Brain Atlas to answer 2 main questions: 1) Which CYP450 enzymes are expressed in the brain and what are their expression levels? 2) Which of those CYP450 enzymes are involved in cholesterol/steroid metabolism? 
+This project is based on my PhD thesis exploring the enzymes in the brain that can produce the neurosteroid pregnenolone from cholesterol. Neurosteroids have important functions in the brain including neuroprotection, anti-inflammation, and modulation of behavior. In classical steroid-producing organs such as the adrenals, pregnenolone is metabolized from cholesterol by the cytochrome P450 (CYP450) enzyme CYP11A1 (see [Lin & Papadopoulos, 2021](https://pubmed.ncbi.nlm.nih.gov/34015388/) for review). However, CYP11A1 protein is difficult to detect in the brain and preliminary experiments have revealed that a potential alternate pathway not involving CYP11A1 is used by human brain cells to produce pregnenolone. Our data also suggests that this alternative pathway involves activity of CYP450s. Therefore, this project will analyze known CYP450s in the UniProt database as well as microarray data from the Allen Brain Atlas to answer 2 main questions: 1) Which CYP450 enzymes are expressed in the brain and what are their expression levels? 2) Which of those CYP450 enzymes are involved in cholesterol/steroid metabolism? 
 
 <br>
 <br>
@@ -48,8 +50,8 @@ List of CYP450s were obtained from the UniProt database by searching "cytochrome
 <br>
 
 ### Data Wrangling for UniProt data
-```{r}
-cyp450 <- fread("UniProt_hCYP450s.csv")
+```{r, echo=FALSE}
+cyp450 <- fread("data/UniProt_hCYP450s.csv")
 setnames(cyp450, "Gene names", "Gene_name")
 setnames(cyp450, "Protein names", "Protein_name")
 setnames(cyp450, "Function [CC]", "Function")
@@ -59,7 +61,7 @@ setnames(cyp450, "Tissue specificity", "Tissue_expression")
 
 Some enzymes have multiple gene names. For this analysis, only the first gene name containing "CYP" will be used. Rows that do not have a gene name starting with "CYP" are removed. 
 
-```{r}
+```{r, echo=FALSE}
 cyp450$Gene_name <- stringr::str_extract(cyp450$Gene_name, "CYP[[:alnum:]]+")
 start_rows <- nrow(cyp450)
 cyp450 <- cyp450[!is.na(Gene_name),]
@@ -71,14 +73,14 @@ The initial data table started with `r start_rows` proteins. After simplifying t
 
 Next, the "Mass" column will be converted to a numeric variable by removing the "," character and converting the values to integers. 
 
-```{r}
+```{r, echo=FALSE}
 cyp450$Mass <- stringr::str_remove_all(cyp450$Mass, ",")
 cyp450$Mass <- as.integer(cyp450$Mass)
 ```
 
 When checking for the masses of the proteins, we see that the lowest mass protein is `r min(cyp450$Mass)` Dalton and the shortest length protein is `r min(cyp450$Length)` amino acids. Since CYP450s are enzymes involved in complex metabolic pathways and typically have multiple functional domains, these small proteins are likely not CYP450 with cholesterol-metabolizing potential. Therefore, proteins that are less than 35 000 Dalton in mass will be removed. 
 
-```{r}
+```{r, echo=FALSE}
 cyp450 <- cyp450[Mass >= 35000,]
 smallest <- cyp450[which.min(Mass),]
 largest <- cyp450[which.max(Mass),]
@@ -87,7 +89,7 @@ largest <- cyp450[which.max(Mass),]
 
 To look for CYP450s that are expressed in the brains, terms such as "brain", "cerebellum", "cerebral",and "hippocampus" (i.e. common references to different parts of the brain) will be used to filter the observations. For easier search for key terms in later analysis, data within Tissue_expression, Function, Subcellular_location, and Pathway columns will all be converted to lower case. 
 
-```{r}
+```{r, echo=FALSE}
 cyp450 <- cyp450[, Tissue_expression := str_to_lower(Tissue_expression)]
 cyp450 <- cyp450[, Function := str_to_lower(Function)]
 cyp450 <- cyp450[, Subcellular_location := str_to_lower(Subcellular_location)]
@@ -105,10 +107,10 @@ The limitation of using UniProt is that it only shows information about proteins
 <br>
 Microarray data were downloaded as 3 separate CSV files: 1) RNA expression level of each sample, 2) details of probes used to measure expression, and 3) details of the tissues used and their donors. Data from the RNA expression and probes CSV files will be merged together. Data about the tissues will be used at the end to identify brain structures of interest. First, the expression data will be pivoted to allow easier merging and analysis later on. Each sample is assigned an arbitrary tissue_id that will be matched with the data from the tissues data set, which will also have the corresponding tissue_id matched. Similar to the UniProt data, probes not associated with a gene name that starts with "CYP" will be removed. 
 
-```{r}
-expressions <- fread("Expression.csv")
-probes <- fread("Probes.csv")
-tissues <- fread("Columns.csv")
+```{r, echo=FALSE}
+expressions <- fread("data/Expression.csv")
+probes <- fread("data/Probes.csv")
+tissues <- fread("data/Columns.csv")
 probe_ids <- expressions[,1]
 expressions <- expressions [, -1]
 colnames(expressions) <- as.character(seq(1,ncol(expressions)))
@@ -134,7 +136,7 @@ The "expression" column contains log2 intensity levels for each probe, which is 
 The average mass of cyptochrome P450 enzymes found in humans is `r mean(cyp450$Mass)` Dalton and the average length is `r mean(cyp450$Length)` amino acids. The smallest CYP450 is `r smallest$Gene_name`, which is `r smallest$Mass` Dalton in mass and `r smallest$Length` amino acids in length. The largest CYP450 is `r largest$Gene_name`, which is `r largest$Mass` Dalton in mass and `r largest$Length` amino acids in length.
 
 
-```{r}
+```{r, echo=FALSE}
 ggplot(cyp450, mapping=aes(x = Mass, y = Length, color = Gene_name)) +
   geom_point() +
   xlab("Mass (Dalton)") +
@@ -150,7 +152,7 @@ ggplot(cyp450, mapping=aes(x = Mass, y = Length, color = Gene_name)) +
 
 Out of the `r nrow(cyp450)` CYP450 enzymes in humans, there are `r nrow(brain_cyp450)` CYP450s that have protein expression in the brain.
 
-```{r}
+```{r, echo=FALSE}
 brain_summary <- brain_cyp450[,.(Gene_name, Protein_name, Length, Mass)]
 knitr::kable(brain_summary)
 ```
@@ -162,7 +164,7 @@ knitr::kable(brain_summary)
 
 Next, the brain CYP450s proteins involved in cholesterol- or steroid-related functions or pathways will be examined. 
 
-```{r}
+```{r, echo=FALSE}
 chol_function <- brain_cyp450[grep("cholesterol|steroid|hormone", Function),]
 chol_pathway <- brain_cyp450[grep("cholesterol|steroid|hormone", Pathway),]
 ```
@@ -172,7 +174,7 @@ CYP450s with cholesterol- and/or steroid-related functions are `r chol_function$
 <br>
 
 
-```{r}
+```{r, echo=FALSE}
 chol_function[, ER := grepl("endoplasmic\\sreticulum",Subcellular_location)]
 chol_function[, Mitochondria := grepl("mitochondria|mitochondrion", Subcellular_location)]
 chol_function[, Cytoplasm := grepl("cytoplasm|cytoplasmic", Subcellular_location)]
@@ -198,7 +200,7 @@ chol_function %>%
 
 
 Therefore, the CYP450 enzymes of interest found using the UniProt database are listed in the table below. 
-```{r}
+```{r, echo=FALSE}
 interest <- chol_function[, .(Gene_name, Protein_name, Mass, Length, Organelle)]
 knitr::kable(interest)
 ```
@@ -210,7 +212,9 @@ knitr::kable(interest)
 
 However, the data from UniProt are not quantitative and the assays used to detect protein may not be sensitive enough to measure the expression of CYP450s in the brain, which can be bound to organelles or membranes. Therefore, the RNA expression for CYP450s were also examined and compared to CYP11A1, the enzyme whose activity we are trying to find an alternative pathway for. 
 
-```{r, warning = FALSE}
+```{r, warning = FALSE, echo=FALSE}
+
+
 ggplot(microarray, mapping=aes(x = top_level_structure_name, y= expression, color = `gene-symbol`)) +
   geom_point()+
   coord_flip()+
@@ -225,13 +229,13 @@ ggplot(microarray, mapping=aes(x = top_level_structure_name, y= expression, colo
 <br>
 
 
-To examine the overall expression of the CYP450s, the average expression in for each of the donors were calculated. The genes with equal or higher expression than CYP11A1 were filtered out. The filtered data set was combined with the UniProt data to view more information about these genes. 
-```{r}
+The average expression for each gene was calculated for each donor and brains structure, and compared to the average overall CYP11A1 expression. The genes with equal or higher expression than CYP11A1 were filtered out. The filtered data set was combined with the UniProt data to view more information about these genes. 
+```{r, echo=FALSE}
 averages <- unique(microarray[, .(
   gene_name = `gene-symbol`, 
   donor_age = donor_age,
   avg = mean(expression, na.rm = TRUE)
-), by = c("gene-symbol","donor_id")])
+), by = c("gene-symbol","donor_id","top_level_structure_name")])
 averages <- averages[order(-avg),]
 
 cyp11a1_avg <- mean(averages[grep("CYP11A1", `gene-symbol`)]$avg, na.rm = TRUE)
@@ -248,54 +252,67 @@ combined[, Organelle := ifelse(ER&Mitochondria, "Both ER and Mitochondria",
 combined$donor_age <- as.integer(stringr::str_remove_all(combined$donor_age, "[[:space:]]years"))
 ```
 
-```{r}
+```{r, echo=FALSE}
 combined %>%
-  plot_ly(x=~donor_age, y=~avg, 
+  plot_ly(x=~avg, y=~top_level_structure_name, 
            type= 'scatter', mode = 'markers', color=~gene_name,
            hoverinfo='text',
            text=~paste(paste(gene_name, ":", sep=""), avg, paste("Subcellular location: ", Organelle), sep = "<br>")) %>%
  layout(title = "Expression of CYP450s with Higher or Equal Expression than CYP11A1 in the Brain",
-                  yaxis = list(title = "Average expression (log2)"), xaxis = list(title = "Donor age (years)"),
+                  xaxis = list(title = "Average expression (log2)"), yaxis = list(title = "Brain Structure"),
          hovermode = "compare")
 ```
 
-**Figure 4: RNA Expression of Highly Expressed CYP450s at different ages.** There are `r length(unique(averages_higher$gene_name))` CYP450 enzymes with equal or higher expression than CYP11A1 in the brain. As seen from the graph, CYP51A1 appears to have the highest expression out of all the CYP450s, followed by CYP4X1 and CYP2J2. The most highly expressed genes do not appear to be significantly changed with age. 
+**Figure 4: RNA Expression of Highly Expressed CYP450s at different ages.** There are `r length(unique(averages_higher$gene_name))` CYP450 enzymes with equal or higher expression than CYP11A1 in the brain. As seen from the graph, CYP51A1 appears to have the highest expression out of all the CYP450s, followed by CYP4X1 and CYP2J2. 
 
 <br>
 <br>
 
 
 Now seeing which of these highly expressed CYP450s are involved in cholesterol or steroid function.  
-```{r}
+
+```{r, echo=FALSE}
 combined_chol <- combined[grep("cholesterol|steroid|hormone", Function),]
-datatable(combined_chol[,.(gene_name,donor_id,donor_age,avg,Protein_name, Length, Mass, Organelle)])
-```
 
-**Table 3: Average expression of CYP450s highly expressed in the brain for different donor tissues.**
-
-<br>
-<br>
-
-
-We see that there are `r length(unique(combined_chol$gene_name))` CYP450s with cholesterol related function when the two datasets are combined together. The CYP450s are listed below.
-
-```{r}
-combined_chol <- unique(combined_chol[, .(
+combined_chol2 <- unique(combined_chol[, .(
   gene_name = gene_name,
   Mass = Mass,
   Function = Function,
   Organelle = Organelle,
   Expression = mean(avg, na.rm = TRUE)
 ), by= "gene_name"])
+combined_chol2 <- combined_chol2[order(-Expression),]
 
-interest2 <- combined_chol[, .(gene_name,Expression, Mass, Organelle)]
+interest2 <- combined_chol2[, .(gene_name,Expression, Mass, Organelle)]
 
 knitr::kable(interest2)
 ```
 
-**Table 4: CYP450s with cholesterol related functions with RNA expression equal to or higher than CYP11A1 in the brain.** 
+**Table 3: CYP450s with cholesterol related functions with RNA expression equal to or higher than CYP11A1 in the brain.** 
+We see that there are `r length(unique(combined_chol$gene_name))` CYP450s with cholesterol related function when the two datasets are combined together, which are listed above. 
+
 <br>
 <br>
+
+Finally, it would be interesting to see if the expression of these CYP450s change with age. Genes that do not have enough data points to show age-related trends were removed from the plots.  
+
+
+```{r, echo=FALSE, warning =FALSE}
+p<-ggplot(combined_chol[!grep("CYP2C9|CYP7A1", gene_name),], mapping=aes(x=donor_age, y = avg))+
+  geom_point() +
+  geom_smooth()+
+  facet_wrap(vars(gene_name)) +
+  xlab("Donor Age (years)") +
+  ylab("Expression level (log2)") +
+  ggtitle("Expression Change of Cholesterol/Steroid-related Brain CYP450s with Age")
+ggplotly(p)
+
+```
+**Figure 5: Expression change of brain CYP450s involved in cholesterol/steroid function with age.** There appears to be no changes in the expressions of these CYP450s with age. 
+
+<br>
+<br>
+
 
 ## Conclusion
 In this analysis, CYP450 enzymes that are expressed in the human brain with functions related to cholesterol and steroid were extracted from a data set containing all human CYP450s. There are `r nrow(chol_function)` of such proteins, which are `r chol_function$Gene_name`. Analysis of microarray data revealed `r length(unique(combined_chol$gene_name))` of such genes: `r interest2$gene_name`.
