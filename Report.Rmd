@@ -198,7 +198,7 @@ knitr::kable(interest)
 ```
 **Table 2: CYP450 Proteins Expressed in the Human Brain with Cholesterol and/or Steroid-related Functions.** 
 
-<br>
+<br>git 
 
 However, the data from UniProt are not quantitative and the assays used to detect protein may not be sensitive enough to measure the expression of CYP450s in the brain, which can be bound to organelles or membranes. Therefore, the RNA expression for CYP450s were also examined and compared to CYP11A1, the enzyme whose activity we are trying to find an alternative pathway for. 
 
